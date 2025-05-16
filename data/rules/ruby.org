@@ -1,0 +1,13 @@
+    - Use rdoc (`=begin`/`=end`) for public APIs/modules.
+    - Add `#!/usr/bin/env ruby` shebang at top of main files.
+    - Add `# frozen_string_literal: true` at top of all files.
+    - Use OOP, modules, mixins.
+    - Wrap execution in `def main; end; main` in main block.
+    - Use `each`, `map`, `select`, `reduce`, not loops.
+    - Use blocks, Procs, Lambdas where suitable.
+    - Follow Principle of Least Surprise.
+    - Use Bundler for gems (`Gemfile`, `Gemfile.lock`).
+    - Follow Ruby Style Guide (RuboCop).
+    - Use symbols for hash keys/options.
+    - Use `?` for predicates, `!` for mutations/errors.
+    - Prefer standard library; use gems as secondary option when necessary.

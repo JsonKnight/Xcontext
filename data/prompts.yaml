@@ -1,0 +1,11 @@
+refactor: |
+  Refactor code to improve structure, clarity, and maintainability, adhering to language best practices and project rules. Optimize performance only if specified. Output code without comments, using professional documentation (rustdoc, rdoc, etc.) for public APIs/modules.
+
+explain_code: |
+  Explain the purpose and functionality of the specified file (or main entry point if unspecified) in AI.org, focusing on high-level concepts and clarity. Adhere to project rules.
+
+generate_docs_for_function: |
+  Generate a Markdown description in AI.org for the specified function, detailing its purpose, parameters, return value, and side effects. Use professional documentation syntax (e.g., `///` for rustdoc) without adding comments to code. Adhere to project rules.
+
+generate_readme_section: |
+  Draft an Org-mode section for README.org on the requested feature (e.g., Installation, Usage, Configuration), explaining why the project exists, the problem it solves, or setup instructions. Keep it clear and concise, adhering to project rules.

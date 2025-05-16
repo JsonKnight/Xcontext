@@ -1,0 +1,11 @@
+    - Use rustdoc (`///`) for public APIs/modules.
+    - Avoid `unwrap()`; use `?` for errors.
+    - Check bounds for indexing to avoid panics.
+    - Use flat module system with `src/some_module.rs`, avoiding `mod.rs`.
+    - Follow `rustfmt`, Rust API guidelines.
+    - Use traits for OOP/module behavior.
+    - Write idiomatic Rust (iterators, `Option`/`Result`, pattern matching).
+    - Prefer standard library; use crates as secondary option when necessary.
+    - Use `Result` for recoverable errors, `panic!` for unrecoverable.
+    - Keep functions small.
+    - Use project-specified YAML parser (e.g., serde_yml).

@@ -1,0 +1,16 @@
+  - Write clear, concise, maintainable code.
+  - Avoid comments unless explaining why (e.g., external constraints) or weird behaviors (e.g., API workarounds). Always remove AI meta-comments (e.g., updated, removed, created).
+  - Use professional documentation (rustdoc, rdoc, doxygen, jsdoc, godoc, phpdoc) only for public APIs/modules.
+  - Use meaningful names for variables and functions.
+  - Avoid magic numbers/strings; use constants or configuration.
+  - Keep functions short, focused on one task (SRP).
+  - Follow project style guides and formatters (e.g., rustfmt, RuboCop, gofmt).
+  - Avoid tests unless required for public APIs exposed to external clients.
+  - Keep Org files (README.org, SPEC.org, CLI.org, GUI.org, AI.org) up-to-date with changes, especially after code generation.
+  - Follow KISS (keep simple), SRP (single responsibility), DRY (no duplication), YAGNI (no unneeded features), SoC (separate concerns), SOLID (OOP principles).
+  - Favor OOP and module systems.
+  - Add functionality to existing files unless a new logical component is needed.
+  - Prioritize correctness, clarity; optimize speed only if specified.
+  - Follow language error handling (e.g., Rust `Result`, Ruby bang methods).
+  - Use language-specific documentation syntax (e.g., `///` for rustdoc, `=begin`/`=end` for rdoc).
+  - Never suggest tests unless requested.

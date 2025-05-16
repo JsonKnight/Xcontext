@@ -1,0 +1,6 @@
+  - README.org: Why project exists, problem solved, setup instructions.
+  - SPEC.org: Technical specs, architecture.
+  - CLI.org: Command-line interface docs.
+  - GUI.org: Graphical user interface docs.
+  - AI.org: Changelogs, AI notes, complex decisions (e.g., architecture trade-offs).
+  - Use Mermaid inline code in Org files when needed (e.g., for diagrams).

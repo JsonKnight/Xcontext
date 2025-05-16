@@ -1,0 +1,5 @@
+  - Add `# frozen_string_literal: true` at top of all files.
+  - Avoid comments.
+  - Use short aliases for tasks.
+  - Provide descriptions for each task.
+  - Organize tasks into namespaces when needed.

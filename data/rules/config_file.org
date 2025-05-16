@@ -1,0 +1,3 @@
+  - For JSON, YAML, TOML, and other config files, remove all comments unless explicitly specified.
+  - Follow project-specified formatting (e.g., 2-space indentation).
+  - Use meaningful keys and values, avoiding magic strings.

@@ -1,0 +1,261 @@
+#+TITLE: xcontext
+#+DATE: <2025-04-24 Thu>
+#+AUTHOR: json
+#+STARTUP: showeverything
+#+OPTIONS: toc:t
+
+* Overview
+~xcontext~ is a command-line tool designed to generate comprehensive, structured context about software projects. It operates via subcommands like ~generate~, ~watch~, ~show~ subcommands (~meta/metas~, ~prompt/prompts~, ~rule/rules~), ~metrics~, etc., with short aliases available (e.g. ~g~, ~w~, ~s~). This context, typically output as JSON, YAML, or XML (controlled by the global ~-f/--format~ option), is ideal for feeding into AI models like LLMs to enable tasks such as code analysis, refactoring, documentation generation, and more. Global flags ~-v~ (verbose) and ~-q~ (quiet) control informational/warning message output.
+
+The tool scans your project based on flexible configuration, gathers information about the project structure (tree), documentation files, source code files, system environment (*internally*), and user-defined metadata/rules. It includes a dynamic "AI Readme" within the output to help explain the context structure and purpose to an AI. It prioritizes user convenience and performance through parallel processing.
+
+Key features include:
+- Subcommand-based interface with short aliases (~generate/g~, ~watch/w~, ~show/s~, ~metrics/m~, ~debug/d~, ~quick/q~, ~completion~, ~config~, ~cl/c~, ~mcp~).
+- Layered configuration (Defaults -> TOML File -> CLI Flags) using snake_case keys in TOML. Global flags control project root and config file loading (~--project-root~, ~--context-file~, ~--disable-context-file~).
+- Automatic project root detection (CLI -> Env Var -> CWD).
+- Detailed context generation via ~generate~ command. Output field order is consistent.
+- *Enhanced AI Readme*: Includes an ~ai_readme~ field explaining the included sections.
+- Optional exclusion of core fields (via flags under ~generate~).
+- Selective inclusion/exclusion of context sections via flags or config (under ~generate~).
+- Flexible filtering of files/folders using paths and glob patterns (respects `.gitignore` by default, configurable globally via ~generate --enable/disable-gitignore~). Trailing `/` in filters implies recursive directory matching, like `.gitignore`.
+- *Common Filters*: Define include/exclude patterns in `[common_filters]` to apply them to docs, tree, and source sections unless overridden.
+- *Section-Aware Built-in Ignores*: Ignores common files by default, configurable via ~generate --enable/disable-builtin-ignore~ and sectionally via ~data/builtin_ignores.yaml~ (trailing `/` implies recursion).
+- Separate handling for documentation files.
+- *Nested Source Representation*: Source code included under ~source~ key (either `files` array or `chunks` array).
+- *Refined Rules Handling*:
+  - Select built-in static rules (common & language-specific) via `[rules].include_static = [...]`.
+  - Import *additional* user rules from external files (`.org`, `.txt`) via `[rules].import = [...]`.
+  - Define custom rules directly in TOML via `<your_rule_name> = [...]`.
+  - Output keys clearly prefixed: `static:`, `imported:`, `custom:`.
+- *Prompt Imports*: Import prompt text from external files via `[prompts].import = [...]`.
+- Multiple output formats (~json~, ~yaml~, ~xml~, use global ~-f~) with optional JSON minification (global ~--enable/disable-json-minify~) and *XML pretty-printing* (global ~--enable/disable-xml-pretty~). Applies to structured output needs.
+- Default human-readable output for ~metrics~, ~debug~, and plural ~show~ commands (~metas~, ~prompts~, ~rules~). ~quick~ defaults to minified JSON. Singular ~show~ defaults to plain text or key listing.
+- *Enhanced Save Logic*: Use `-s` / `--save` without a path argument to save to the configured `[save].output_dir` or the current directory as a fallback. Optional saving of context/config/completions (~generate -s [path]~, ~watch -s [path]~, ~config --save~, ~completion --save~).
+- Chunking of large source content (~generate -c~, JSON only).
+- Watch mode (~watch~) to automatically regenerate context on file changes (reloads config/rewatches files if config changes).
+- Quick mode (~quick~) to extract specific file contents. Handles directory patterns (`data/` implies `data/**`).
+- Utility commands for:
+  - Default config inspection/saving (~config~ command with ~--save~ flag).
+  - Showing specific items or listing keys (~show meta/prompt/rule~), or showing all content (~show metas/prompts/rules~).
+  - Debugging file inclusions and effective config (~debug~ command).
+  - Viewing project metrics (~metrics~ command, pretty table default).
+- Shell completion generation (~completion~ command, Fish default, others optional, default to stdout).
+- Simple screen clear utility (~cl~ command).
+- Verbosity control (~-q~ silences info/warnings, ~-v~ shows info).
+
+* Requirements
+ - Operating System: Linux (tested on Fedora, likely compatible with others).
+ - Rust Toolchain: Cargo and Rust compiler (check `Cargo.toml` for version).
+ - *For Fish Completions:* Fish shell installed.
+
+* Installation
+** From Source
+   1. Clone the repository.
+   2. Navigate to the project directory.
+   3. Build and install using Cargo:
+      #+BEGIN_SRC shell
+        cargo install --path .
+      #+END_SRC
+      This will typically place the `xcontext` binary in `~/.cargo/bin/`. Alternatively, build a release binary:
+      #+BEGIN_SRC shell
+        cargo build --release
+      #+END_SRC
+      The binary will be located at `target/release/xcontext`. You can copy this to a directory in your system's ~PATH~.
+
+* Setup (Configuration)
+** Configuration File
+   - Uses `xcontext.toml`, typically in `.xtools/xcontext/` relative to project root (path configurable via global ~--context-file~).
+   - Keys use snake_case (e.g., ~use_gitignore~, ~enable_builtin_ignore~). Use trailing `/` for directory excludes/includes to imply recursive contents (e.g., `exclude = ["target/", "node_modules/"]`).
+   - Loading disabled via global ~--disable-context-file~.
+   - See [[file:SPEC.org::Sample Configuration (xcontext.toml)][Sample Configuration]] in SPEC.org for the structure and new features like `[common_filters]`, `[rules].include_static`, `[rules].import`, `[prompts].import`.
+** Generating a Starting Configuration
+   - Use ~xcontext config > path/to/xcontext.toml~ to view the default config structure.
+   - Use ~xcontext config --save~ to save the default config structure to the default location (~./.xtools/xcontext/xcontext.toml~), prompting for overwrite.
+** Configuration Loading
+   - Layers: Defaults -> TOML File -> CLI Flags.
+   - Use ~xcontext debug~ (or ~d~) to see the final *effective* configuration and included file lists.
+** Shell Completions
+   - Use ~xcontext completion~ to view Fish script or ~xcontext completion --save~ to save it. Use ~--shell~ for others.
+
+* Usage
+  #+BEGIN_SRC shell
+    xcontext [GLOBAL_OPTIONS] <COMMAND> [COMMAND_OPTIONS]
+  #+END_SRC
+  - Run ~xcontext --help~ or ~xcontext h~ for top-level help.
+  - Run ~xcontext <COMMAND> --help~ for help on a specific command (e.g., ~xcontext generate --help~).
+  - If no command is given, help is displayed. Use ~generate~ or ~g~ explicitly for default action.
+
+* Examples
+** Basic Usage
+   #+BEGIN_SRC shell
+     # Generate context explicitly and view it
+     xcontext generate | less
+     xcontext g | less # Alias
+
+     # Generate context for a different project
+     xcontext --project-root /path/to/project g
+
+     # Generate context in YAML format
+     xcontext g -f yaml
+
+     # Generate pretty-printed JSON
+     xcontext g --disable-json-minify
+
+     # Generate pretty-printed XML
+     xcontext g -f xml --enable-xml-pretty
+
+     # Generate context without loading any TOML config file
+     xcontext g --disable-context-file
+
+     # Generate context excluding project name and timestamp
+     xcontext g --exclude-project-name --exclude-timestamp
+
+     # Show version info
+     xcontext -v
+     xcontext --version
+
+     # Run generate verbosely (shows info messages like file read errors)
+     xcontext g -v
+
+     # Run generate quietly (suppresses warnings/info)
+     xcontext g -q
+
+     # Clear the screen
+     xcontext cl
+     xcontext c # Alias
+   #+END_SRC
+
+** Saving & Chunking (Generate Command)
+   #+BEGIN_SRC shell
+     # Save context using default path logic (config or CWD)
+     xcontext g -s
+
+     # Save context as JSON explicitly to ./output
+     xcontext g -s ./output
+
+     # Save context as pretty XML
+     xcontext g -f xml --enable-xml-pretty -s ./output_files
+
+     # Chunk source files into ~5MB JSON files and save to default location
+     xcontext g -c 5MB -s
+   #+END_SRC
+
+** Filtering Content (Generate Command)
+   #+BEGIN_SRC shell
+     # Only include Rust source files and Cargo.toml
+     xcontext g --source-include 'src/**/*.rs' --source-include 'Cargo.toml'
+
+     # Exclude test directories from source (use trailing / or /**)
+     # This assumes no common_filters exclude it already
+     xcontext g --source-exclude 'src/tests/'
+
+     # Generate context but ignore .gitignore files globally
+     xcontext g --disable-gitignore
+
+     # Generate context without using the default built-in ignores
+     xcontext g --disable-builtin-ignore
+   #+END_SRC
+
+** Watch Mode
+   #+BEGIN_SRC shell
+     # Watch for changes and print context to stdout
+     xcontext watch
+     xcontext w # Alias
+
+     # Watch for changes and save to disk (default location) with a 1-second delay
+     xcontext w --watch-delay 1s -s
+   #+END_SRC
+
+** Quick Mode
+   #+BEGIN_SRC shell
+     # Quickly output content of all TOML files (minified JSON default)
+     xcontext quick '**/*.toml'
+     xcontext q '**/*.toml' # Alias
+
+     # Quickly output content of files in data dir as YAML
+     xcontext q data/ -f yaml # Handles directory path
+   #+END_SRC
+
+** Utility Commands
+   #+BEGIN_SRC shell
+     # Show the *default* configuration structure (TOML to stdout)
+     xcontext config
+
+     # Save the *default* configuration structure (prompts for overwrite)
+     xcontext config --save
+
+     # Show content of all available prompts (human-readable default)
+     # Includes built-in, custom, and imported prompts.
+     xcontext show prompts
+     xcontext s prompts # Alias
+
+     # Show all available prompts as YAML
+     xcontext s prompts -f yaml
+
+     # Show a specific prompt (plain text default)
+     xcontext show prompt custom:code_review # Use prefix if needed
+
+     # List available rule definition names (static, imported, custom)
+     xcontext show rule # Use singular to list keys
+
+     # Show content of all available rule definitions (human-readable default)
+     xcontext show rules # Use plural to show all content
+
+     # Show content of all rules as JSON
+     xcontext s rules -f json
+
+     # Show content of a specific imported rule file
+     xcontext show rule imported:my_company_standards
+
+     # Show all custom metadata key-value pairs (human-readable default)
+     xcontext show metas
+
+     # Show the value for a specific metadata key (plain text default)
+     xcontext show meta version # Use singular to show specific
+
+     # Show overall project metrics (human-readable default table)
+     xcontext metrics
+     xcontext m # Alias
+
+     # Show overall project metrics as YAML
+     xcontext m -f yaml
+
+     # Show detailed debug information (human-readable default)
+     # Includes effective config, common filters, included files
+     xcontext debug
+     xcontext d # Alias
+
+     # Show Fish shell completion script to stdout (fish is default)
+     xcontext completion
+
+     # Save Bash shell completion script
+     xcontext completion --shell bash --save
+   #+END_SRC
+
+* Configuration Details
+  - See the TOML structure, sample configuration, and detailed explanations in [[file:SPEC.org]].
+  - Key new sections/keys: `[common_filters]`, `[rules].include_static`, `[rules].import`, `[prompts].import`, `[output].xml_pretty_print`.
+  - Built-in ignore patterns are in ~data/builtin_ignores.yaml~ and can be section-specific (`common:`, `tree:`, `source:`, `docs:`). Trailing `/` in exclude/include patterns implies recursive directory matching.
+
+* Output Structure Summary
+    The generated output (JSON/YAML/XML) via the `generate` command contains the following top-level fields (order roughly as shown, optional fields depend on config/flags):
+    - `ai_readme`: (String) An enhanced guide for AI explaining the included fields.
+    - `project_name`: (String, Optional) The determined project name.
+    - `project_root`: (String, Optional) The absolute path to the project root.
+    - `system_info`: (Object, Optional) Information about the generation environment.
+    - `meta`: (Object, Optional) Key-value pairs from config and `--add-meta`.
+    - `docs`: (Array, Optional) List of documentation files: `{ "path": "...", "content": "..." }`.
+    - `tree`: (Array, Optional) Hierarchical representation of the directory structure.
+    - `source`: (Object, Optional) Contains *either* `files` or `chunks`:
+      - `files`: (Array) List of source files: `{ "path": "...", "content": "..." }`.
+      - `chunks`: (Array) List of relative paths to chunk files (String).
+    - `rules`: (Object, Optional) Map where keys are rule set names (prefixed `static:`, `imported:`, `custom:`) and values are lists of rule strings.
+    - `generation_timestamp`: (String, Optional) ISO 8601 timestamp of generation.
+
+
+* References
+  - [[file:CLI.org][CLI Options Specification]]
+  - [[file:SPEC.org][Detailed Specification & TOML Structure]]
+
+* License
+  [[file:LICENSE][GPLv3 License]]

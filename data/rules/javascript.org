@@ -1,0 +1,7 @@
+    - Use jsdoc (`/** */`) for public APIs/modules.
+    - Prefer vanilla JS; use Vite.js for builds.
+    - Follow common style guides (e.g., Airbnb, StandardJS).
+    - Use `const` for immutable, `let` for mutable variables.
+    - Avoid `var` unless needed for legacy code.
+    - Use arrow functions for callbacks.
+    - Prefer `async`/`await` over raw promises.

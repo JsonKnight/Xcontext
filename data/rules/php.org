@@ -1,0 +1,5 @@
+    - Use phpdoc (`/** */`) for public APIs/modules.
+    - Follow PSR-12 standard.
+    - Use Composer for dependencies.
+    - Use OOP (classes, traits) for WordPress plugins.
+    - Use WP API for WordPress integrations.

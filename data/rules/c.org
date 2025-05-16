@@ -1,0 +1,10 @@
+   - Use doxygen (`/** */`) for public APIs/modules.
+    - Pair `malloc`/`calloc`/`realloc` with `free`; check `NULL`.
+    - Use `#ifndef`/`#define`/`#endif` or `#pragma once`.
+    - Prefer standard library (`<stdio.h>`, `<stdlib.h>`, `<string.h>`).
+    - Use `strncpy`, `snprintf`, `memcpy_s` to prevent buffer overflows.
+    - Use forward declarations in headers.
+    - Use `const` for immutable data.
+    - Keep functions small.
+    - Follow K&R or Allman style.
+    - Check return values for I/O, memory, system calls.

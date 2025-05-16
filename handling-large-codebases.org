@@ -1,0 +1,260 @@
+#+TITLE: xcontext: Hybrid Client/Server Architecture for Large Codebase Context Management
+#+AUTHOR: json
+#+DATE: <2025-05-01 Thu>
+#+OPTIONS: toc:t num:t
+
+* Abstract
+Interacting with Large Language Models (LLMs) on large, real-world codebases presents a significant challenge due to the models' finite context windows. Standard codebases often exceed millions of tokens, making it impossible to provide complete context directly. The ~xcontext~ tool addresses this by implementing a decided *Hybrid Context Management* strategy, combining high-level code summaries (stored in SQLite) with precise, semantically relevant code snippets retrieved via Retrieval-Augmented Generation (RAG) using vector embeddings (stored in Qdrant). This report documents the chosen client/server architecture for ~xcontext~, outlining its components, specific technologies (Tree-sitter, Nomic/Google Embeddings, Qdrant, SQLite), data flows, and operational workflows, designed to provide scalable and comprehensive context to LLMs like Gemini.
+
+* The Challenge: LLM Context Limits vs. Large Codebases
+LLMs have token limits (e.g., 1-2M for Gemini Pro models) often insufficient for real-world codebases.
+
+*Example: Zed Editor Codebase*
+- Files: ~1,294 Rust files
+- Lines: ~675,366 total lines (~600k code lines)
+- Estimated Tokens: ~4-8 million+ tokens
+
+Directly inputting such codebases is infeasible. ~xcontext~ employs a hybrid strategy.
+
+* The ~xcontext~ Solution: Hybrid Client/Server Architecture
+
+The chosen strategy combines *LLM-generated Summaries* stored in SQLite (broad context) and *Retrieval-Augmented Generation (RAG)* using vector embeddings stored in Qdrant (specific context). This is implemented using a layered *Client/Server Architecture* within a Cargo Workspace.
+
+** Architectural Layers & Structure
+   - *Core Logic Library (`xcontext-core`):* Reusable Rust library containing the primary business logic, independent of server or UI concerns. Uses internal support modules/crates.
+   - *Server Process (`xcontext-server`):* Persistent background binary using `xcontext-core`. Manages state, DB connections, client communication, background tasks (`sync`, `mcp`). Built on an async runtime (e.g., Tokio).
+   - *Client Applications (`xcontext-cli`, `xcontext-gui`):* Lightweight frontends connecting to the `server` via a shared client library (`xcontext-client`) and protocol (e.g., gRPC).
+   - *Shared Client Library (`xcontext-client`):* Library crate containing shared logic for `cli` and `gui` to communicate with `server`.
+   - *Shared Utilities (`xcontext-common`):* Library crate for shared data structures (types, errors), constants, and basic utilities used across the workspace. Potentially includes shared algorithms and data structures unless complexity warrants dedicated crates (`xcontext-algorithms`, `xcontext-structures`).
+
+** High-Level Architecture Diagram (Overall Flow)
+   #+BEGIN_SRC mermaid
+     graph TD
+         subgraph "User Interface Clients"
+             CLI["xcontext-cli (Client Binary)"]
+             GUI["(Future) xcontext-gui (Client Binary)"]
+             ClientLib["xcontext-client (Shared Lib)"]
+         end
+
+         subgraph "Communication Protocol"
+             direction LR
+             Proto["gRPC / JSON-RPC / etc."]
+         end
+
+         subgraph "Server Process"
+             Server["xcontext-server (Binary)"]
+         end
+
+         subgraph "Core Logic Library"
+             Core["xcontext-core (Library)"]
+         end
+
+         subgraph "Background Tasks (Managed by Server)"
+             Sync["sync watcher Logic"]
+             MCP["mcp server Logic"]
+         end
+
+         subgraph "Data Stores"
+             direction LR
+             VDB[(Qdrant Vector DB)]
+             KDB[(SQLite Summary KB)]
+         end
+
+         subgraph "External Services"
+             direction LR
+             EmbAPI{"Embedding API (Nomic/Google)"}
+             LLMAPI{"LLM API (Gemini)"}
+         end
+
+         subgraph "Code Parsing"
+            TS["tree-sitter"]
+         end
+
+         CLI -- Uses --> ClientLib;
+         GUI -- Uses --> ClientLib;
+         ClientLib -- "Request via Proto" --> Server;
+         Server -- "Response via Proto" --> ClientLib;
+
+         Server -- Uses --> Core;
+         Server -- Manages --> Sync;
+         Server -- Manages --> MCP;
+
+         Core -- Contains/Uses --> Fetch("fetch logic");
+         Core -- Contains/Uses --> Index("index logic");
+         Core -- Contains/Uses --> Summaries("summaries logic");
+         Core -- Contains/Uses --> Query("query logic");
+         Core -- Contains/Uses --> LLM("llm logic");
+         Core -- Contains/Uses --> Agent("agent logic");
+         Core -- Contains/Uses --> Health("health logic");
+         Core -- Uses --> Engine("engine module");
+         Core -- Uses --> Auth("auth module");
+         Core -- Uses --> Common("xcontext-common types/utils");
+
+
+         Index -- Uses --> TS;
+         Index -- Uses --> EmbAPI;
+         Index -- "Writes To" --> VDB;
+         Summaries -- Uses --> LLMAPI;
+         Summaries -- "Writes To" --> KDB;
+         Query -- "Reads From" --> KDB;
+         Query -- "Reads From" --> VDB;
+         LLM -- Uses --> LLMAPI;
+         Agent -- Uses --> Engine;
+
+         Sync -- Triggers Updates In --> Index;
+         Sync -- Triggers Updates In --> Summaries;
+         MCP -- "Handles Requests Using" --> Query;
+
+         style Server fill:#f9f,stroke:#333,stroke-width:2px
+         style Core fill:#ccf,stroke:#333,stroke-width:2px
+
+   #+END_SRC
+
+* Core Components & Responsibilities
+
+This section details the roles based on the decided names and structure, organized within a Cargo Workspace.
+
+** Workspace Crates & Component Diagram
+   #+BEGIN_SRC mermaid
+    graph TD
+        subgraph "Workspace Binaries"
+            CLI["xcontext-cli (bin)"]
+            GUI["(Future) xcontext-gui (bin)"]
+            Server["xcontext-server (bin)"]
+        end
+
+        subgraph "Core & Shared Libraries"
+            Core["xcontext-core (lib)"]
+            ClientLib["xcontext-client (lib)"]
+            Common["xcontext-common (lib)"]
+        end
+
+        subgraph "Functional Logic Libs (used by Core/Server)"
+            Fetch["fetch (module/lib)"]
+            Index["index (module/lib)"]
+            Summaries["summaries (module/lib)"]
+            Query["query (module/lib)"]
+            LLM["llm (module/lib)"]
+            Agent["agent (module/lib)"]
+            Health["health (module/lib)"]
+            Sync["sync (module/lib)"]
+            MCP["mcp (module/lib)"]
+        end
+
+        subgraph "Internal Support Libs (used by Core/Functional Libs)"
+            Engine["engine (module/lib)"]
+            Auth["auth (module/lib)"]
+            Algo["(Future) xcontext-algorithms (lib)?"]
+            DS["(Future) xcontext-structures (lib)?"]
+        end
+
+        CLI --> ClientLib;
+        GUI --> ClientLib;
+        ClientLib --> Common;
+        ClientLib -- Talks via Protocol --> Server;
+
+        Server --> Core;
+        Server --> Sync;
+        Server --> MCP;
+        Server --> Common;
+
+        Core --> Fetch; Core --> Index; Core --> Summaries; Core --> Query;
+        Core --> LLM; Core --> Agent; Core --> Health;
+        Core --> Engine; Core --> Auth; Core --> Common;
+        Core --> Algo; Core --> DS;
+
+        Index --> Engine; Index --> Auth; Index --> Common;
+        Summaries --> Engine; Summaries --> Auth; Summaries --> LLM; Summaries --> Common;
+        Query --> Engine; Query --> Common;
+        Agent --> Engine; Agent --> Common;
+        Sync --> Index; Sync --> Summaries; Sync --> Common;
+        MCP --> Query; MCP --> Common;
+        Engine --> Common;
+        Auth --> Common;
+
+        Algo --> Common;
+        DS --> Common;
+
+
+        style CLI fill:#lightgreen,stroke:#333
+        style GUI fill:#lightgreen,stroke:#333
+        style Server fill:#f9f,stroke:#333,stroke-width:2px
+        style Core fill:#ccf,stroke:#333,stroke-width:2px
+        style ClientLib fill:#lightblue,stroke:#333
+        style Common fill:#yellow,stroke:#333
+
+   #+END_SRC
+
+** Component Descriptions
+   - *`xcontext-cli` (Binary):* Parses args, uses `xcontext-client` to talk to `server`, displays terminal results.
+   - *`xcontext-server` (Binary):* Persistent background server. Manages state, DB connections, runs `sync` & `mcp`, calls `core` logic via requests from `client`. Uses Tokio.
+   - *`xcontext-core` (Library):* Central logic library. Orchestrates operations, contains main business logic, uses internal/functional modules/crates.
+   - *`(Future) xcontext-gui` (Binary):* Graphical client using `xcontext-client`.
+   - *`xcontext-client` (Library):* Shared library for `cli` and `gui` client logic (communication with server).
+   - *`xcontext-common` (Library):* Holds shared types (structs, enums, errors), constants, basic utilities. *May initially contain shared algorithms/data structures.*
+   - *`Workspace` (Logic in `core`):* Gathers project files based on config/ignores. *(Note: This is the correct term for this function; "Workspace" in Cargo refers to the multi-crate project structure).*
+   - *`index` (Logic in `core`):* Builds/updates Qdrant vector index (uses `tree-sitter`, `auth`, `engine`).
+   - *`summaries` (Logic in `core`):* Builds/updates SQLite summary KB (uses `llm`, `auth`, `engine`).
+   - *`query` (Logic in `core`):* Retrieves hybrid context from SQLite+Qdrant (uses `engine`, `auth`). Includes context prioritization logic.
+   - *`llm` (Logic in `core`):* Interacts with primary LLM API (Gemini). Uses `auth`.
+   - *`agent` (Logic in `core`):* Executes actions based on `llm` output. Uses `engine`.
+   - *`health` (Logic in `core`):* Performs diagnostic checks.
+   - *`sync` (Logic used by `server`):* Background file watcher triggering `index`/`summaries` updates.
+   - *`mcp` (Logic used by `server`):* Implements MCP protocol server interface.
+   - *`engine` (Internal Module/Lib used by `core`):* Optimized I/O and DB access (Qdrant, SQLite).
+   - *`auth` (Internal Module/Lib used by `core`):* Secure credential handling (OS keyring/env vars).
+   - *`(Future) xcontext-algorithms`, `xcontext-structures` (Libraries):* Potential future crates if shared algorithms or data structures become complex enough to warrant separation from `xcontext-common`. Start by placing shared items in `common`.
+
+* Key Technologies (Chosen Stack)
+- *Code Parsing:* Tree-sitter (via `rust-tree-sitter`).
+- *Vector Embeddings:*
+  - *Local/Offline:* Ollama running *`nomic-embed-code`*.
+  - *Cloud/Online:* Google Vertex AI Text Embeddings API (*`text-embedding-004`*).
+  - *(Note: An index should be built & queried with a single, consistent embedding model).*
+- *Vector Database:* Qdrant (local).
+- *Summary Storage:* SQLite (local file).
+- *LLM APIs:* Google Gemini API.
+- *Async Runtime:* Tokio (for `xcontext-server`).
+- *Communication Protocol:* gRPC (via `tonic`) or similar.
+- *Project Structure:* Cargo Workspace.
+
+* Data Stores
+- *Vector Index (Qdrant):* Stores vectors + chunk metadata.
+- *Summary Knowledge Base (SQLite):* Stores summaries + associated metadata.
+
+* Workflows by Project Size
+
+(Workflows remain the same as described previously, differentiating small vs. large/giant projects and manual vs. agentic paths, using the defined components).
+
+** Parallel Indexing & Summarization Setup Diagram
+   #+BEGIN_SRC mermaid
+     graph TD
+         A[Codebase] --> B(xcontext-fetch);
+         B --> C(tree-sitter Chunking);
+         C --> D{Embedding Model};
+         D --> E(Qdrant Store);
+
+         B --> F(Batch Crates);
+         F --> G{LLM Summarize};
+         G --> H(SQLite Store);
+
+         subgraph RAG Indexing
+             C; D; E;
+         end
+
+         subgraph Summarization
+             F; G; H;
+         end
+
+         style RAG Indexing fill:#e6f7ff,stroke:#0066cc
+         style Summarization fill:#e6ffe6,stroke:#006600
+   #+END_SRC
+
+* Key Mechanism: Context Prioritization
+Handled within *`xcontext-core`*'s query/assembly logic before passing context to the `llm` component. Uses RAG scores, query analysis, etc., to select the best context subset within LLM token limits.
+
+* Implementation Considerations Summary
+(Async Server, Communication Protocol, Modularity/Traits in `core`, Config/Security via `auth`, Background Task Robustness, UX, Caching).
+
+* Conclusion
+This documented Hybrid Client/Server architecture, utilizing the specified components and technologies (SQLite, Qdrant, Tree-sitter, Nomic/Google Embeddings, Gemini), provides a clear and robust roadmap for ~xcontext~. It addresses the challenge of large codebases by intelligently combining broad summaries and specific RAG results, managed within a maintainable and scalable Cargo workspace structure.

@@ -1,0 +1,5 @@
+ - Delete commented-out code (ai added comments and all explanation comments).
+  - During code outputting/generating max file limit range is 3-7 files (depending on file length) and once reached wait for me to type `CF` confirm to continue generating remaining files.
+  - Aim for files under 700 lines; split if handling multiple responsibilities.
+  - After generating each file; say `break!` and pause for 1-3 seconds and then continue.
+  - Don't generate partial files because i copy paste the code most of the times

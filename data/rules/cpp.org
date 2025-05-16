@@ -1,0 +1,11 @@
+    - Use doxygen (`/** */`) for public APIs/modules.
+    - Use RAII for resource management.
+    - Prefer smart pointers (`std::unique_ptr`, `std::shared_ptr`).
+    - Use `const` correctness; mark methods `const`.
+    - Use standard library (`<vector>`, `<string>`, `<algorithm>`, `<optional>`).
+    - Use C++11/14/17/20/23 features (`auto`, lambdas, concepts).
+    - Use `#pragma once` or header guards.
+    - Minimize headers with forward declarations.
+    - Follow Google C++ Style Guide or LLVM.
+    - Use exceptions for exceptional cases, error codes for expected issues.
+    - Use OOP (classes, namespaces).

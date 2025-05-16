@@ -1,0 +1,8 @@
+    - Use godoc (`//`) for public APIs/modules.
+    - Follow `gofmt` or `goimports`.
+    - Check error returns; use `errors.Is`, `errors.As`.
+    - Use small interfaces for decoupling.
+    - Keep packages focused, lowercase, no cyclic dependencies.
+    - Use goroutines/channels for concurrency; use `sync.Mutex`, `sync.WaitGroup` if needed.
+    - Write simple, readable Go.
+    - Use short names locally, longer globally.

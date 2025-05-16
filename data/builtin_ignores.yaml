@@ -1,0 +1,29 @@
+common:
+  - ".gem/"
+  - ".zed/"
+  - ".idea/"
+  - ".vscode/"
+  - ".xtools/"
+  - "target/"
+  - ".cache/"
+  - "node_modules/"
+  - "vendor/"
+  - "build/"
+  - "dist/"
+  - "__pycache__/"
+  - ".direnv/"
+  - "*.pyc"
+  - ".DS_Store"
+  - ".envrc"
+  - "*.lock"
+
+docs: []
+
+tree:
+  - ".git/"
+
+source:
+  - ".rubocop.yml"
+  - ".dir-locals.el"
+  - ".projectile"
+  - "LICENSE"

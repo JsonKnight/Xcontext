@@ -1,0 +1,37 @@
+#+TITLE: Xcontext Vision
+#+AUTHOR: json
+#+DATE: May 07, 2025
+
+* Vision
+
+Xcontext is an simple tool for generating project context for feeding to a AI chat apps.
+
+It creates an structured context from the cli and just copy and paste to gemini or grok etc...
+
+Then i can start asking questions and start working on the project.
+
+To see what the output of this cli might look like see: [[file:samples/xcontext_project.json][samples/xcontext_project.json]]
+
+The structure json format contains all the info needed for ai to give enough context without me doing that much.
+
+Like sometimes it's really annoying that it's doesn't follow our rules or like we have shared or upload many files.
+
+It's extremely painful and annoying. So, born out of my frustration, it helps me a lot. This is one of the most used tool
+
+right now in my daily usage.
+
+It supports an toml config file, respects gitignore, custom rules and three output format ( json, xml, yaml )
+
+and generating the output in chunks [[file:samples/chunks][samples/chunks]] for really large projects.
+
+** Moving Forward:
+
+Right now, working with small / medium codebased works fine. Like we have chunks functionlaity for handling certain amount of size.
+
+But still, my next target is handling large codebases like zed and giangtic linux kernel.
+
+My imagination really went wild for this thing...
+
+See: [[file:handling-large-codebases.org][Handling Large Codebases]]
+
+> To be continued...
